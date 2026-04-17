@@ -118,3 +118,27 @@ After the 3rd message passing layer, the final 128-dimensional embedding of ever
 ---
 
 
+## Formal Training & Optimization Strategy: Masked PPO, Curriculum Learning, and API Chaining
+
+1. Core Optimization Algorithm: Proximal Policy Optimization (PPO)
+The agent is trained using PPO, an Actor-Critic policy gradient method, chosen for its stability in complex combinatorial spaces and its sample efficiency.
+* The Actor Network: The main Bipartite GATv2 outputs a probability distribution over the available lines.
+* The Critic Network: A parallel linear head attached to the GAT's readout layer that predicts the Value Function $V(s_t)$—the expected total number of lines to finish the game from the current state.
+* The Objective: PPO updates the network weights by comparing the Actor's actual reward against the Critic's prediction (the Advantage). To prevent catastrophic forgetting during training, PPO clips the policy update so the AI's behavior does not drastically shift from a single lucky (or unlucky) episode.
+
+2. Action Masking Mechanics
+Because the bipartite graph dynamically prunes Line Nodes, the action space $A_t$ shrinks at every step. Standard RL algorithms fail here.
+* Implementation: Before the Actor network applies the softmax function to its output logits, an Action Mask is applied. The logits of mathematically invalid or pruned lines are set to $-\infty$. This guarantees the softmax probability for invalid lines is exactly $0.0$, forcing the PPO optimizer to only explore mathematically sound geometry.
+
+3. Curriculum Learning Protocol (The Training Escalation)
+To prevent early-stage gradient collapse, the environment strictly controls the scale of the point coordinates ($n$) presented to the agent.
+* Tier 1 (The Sandbox, $n=10$ to $50$): Rapid episodes where the agent learns basic point-coverage, the step-penalty survival mechanic, and avoiding the $\Delta L > 1$ physics violation.
+* Tier 2 (The Benchmark, $n=161$): The AI must achieve $\ge 95\%$ match with the known ILP ground truth. This serves as mathematical proof of architectural competence.
+* Tier 3 (The Wall, $n=859$): The agent maps the upper bound of Neil Sloane's exact ILP calculations, learning deep Phase 2 structural resonances.
+* Tier 4 (The Frontier, $n=1000$ to $5000$): The environment unlocks massive scales where the AI hunts for novel upper bounds that beat the greedy baseline.
+
+4. The Kaggle Survival Pipeline (Cross-Account Chaining)
+To bypass the 12-hour session timeout and the 19.5 GB working directory limit across 5 rotating Kaggle P100 accounts, a rolling API chain is deployed.
+* Rolling Checkpoints: The training script strictly maintains only three files: `model_latest.pth`, `model_best.pth`, and `optimizer.pth`. These are overwritten every 100 episodes or 30 minutes. Total disk usage remains strictly under 50 MB, eliminating OOM storage crashes.
+* The Baton Pass (Automated Hand-off): At hour 11.5 of the Kaggle session, a time-hook triggers. The script safely pauses training and pushes the `latest.pth` and `optimizer.pth` files to a centralized cloud repository (e.g., Kaggle Datasets API or Weights & Biases Artifacts).
+* Seamless Resumption: When the next co-author account spins up, the initialization script automatically fetches the artifacts from the cloud, loads the exact model weights and PPO optimizer momentum, and resumes training at the exact episode it left off. This achieves a continuous 150-hour weekly compute block without manual data transfer.
