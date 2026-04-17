@@ -46,3 +46,35 @@ Once the agent selects a specific line $v^*$, the environment executes the follo
 
 4. Strategic Justification (Defeating the Greedy Trap)
 By restricting the action space to a single sequential line choice—rather than a simultaneous multi-line prediction—the agent is forced to witness the geometric consequences of its actions. Guided by the RL reward function (Bellman Equation), the network learns to evaluate the expected future state rather than immediate payout. It learns to sacrifice immediate maximum-point-coverage (the greedy trap) in favor of selecting structurally superior lines that minimize the total sequence length $L(n)$ over the entire episode.
+
+
+---
+
+## Formal Reward Function: Step-Penalty with Bounded Baseline Jackpot and Physics Enforcement
+
+1. Core Architecture
+The Reward Function $R$ is formulated to guide the Reinforcement Learning (RL) agent via a combination of constant negative pressure (dense step rewards) and a mathematically rigorous terminal evaluation (sparse episodic rewards). The objective is to maximize the expected cumulative return $G = \sum_{t=0}^{T_{end}} \gamma^t R_t$, where $T_{end}$ is the total number of lines used to clear the board, and $\gamma=1$ (undiscounted) since the episode length is finite and exactly equals the line count.
+
+2. Dense Reward: The Efficiency Driver
+At every time step $t$ where an action $a_t$ (selecting a line) is taken, the environment issues a strictly negative reward:
+$R_t = -1$
+* Strategic Justification: This represents the "cost" of using a line. By penalizing every single move, the environment natively forces the agent to seek the shortest possible path to a cleared board. It mathematically eliminates the "Greedy Clone" trap, as there is zero positive reinforcement for simply covering large numbers of points inefficiently.
+
+3. Sparse Terminal Reward: The Baseline Jackpot
+When the episode terminates (i.e., $|U_t| = 0$, all points covered), the total lines used $T_{end}$ is compared against the established greedy baseline $L_{greedy}(n)$. A terminal reward is applied:
+$R_{terminal} = \lambda \cdot (L_{greedy}(n) - T_{end})$
+* $\lambda$ (Jackpot Multiplier): A massive positive scaling factor (e.g., $\lambda = 100$).
+* Strategic Justification: If the agent beats the greedy algorithm ($T_{end} < L_{greedy}(n)$), it receives a massive positive payout. If it matches greedy, $R_{terminal} = 0$. If it performs worse than greedy, it suffers a scaled penalty. This asymmetric framing heavily incentivizes the discovery of novel structural phase transitions over mere baseline matching.
+
+4. The Physics Enforcement Constraint ($\Delta L \le 1$)
+To embed the fundamental laws of prime geometry into the RL environment, the agent must respect the contiguous structural growth bound. Mathematically, covering $n$ points should never require more than one additional line compared to the optimal cover for $n-1$ points. Let $L_{best}(n-1)$ be the absolute best known line cover for the previous integer step.
+Upon termination, the physics constraint is evaluated:
+If $T_{end} > L_{best}(n-1) + 1$:
+    $R_{physics} = -\Phi$
+* $\Phi$ (Physics Violation Penalty): An overwhelmingly large negative scalar (e.g., $\Phi = 1000$).
+* Strategic Justification: This forces the agent to learn "scaffolding." If the AI discovers a cheap trick that clears $n$ points but violently breaks the geometric infrastructure established at $n-1$, it is hit with a catastrophic penalty. This guarantees that the AI's solutions are structurally continuous and scientifically valid for proving theoretical upper bounds.
+
+5. Mitigation of High-Reward Traps
+* Trap A: The Infinite Loop (Reward Farming). Because $R_t$ is strictly negative and the environment deterministically removes covered points, there are no positive feedback loops to exploit mid-game. The episode must monotonically approach termination.
+* Trap B: Deliberate Episode Extension. An agent might theoretically try to prolong an episode if a massive terminal reward was guaranteed. However, because $R_{terminal}$ decreases linearly as $T_{end}$ increases, and $R_t$ constantly subtracts, the mathematical gradients strictly point toward the absolute minimum $T_{end}$.
+* Trap C: Subverting the Baseline. The baseline $L_{greedy}(n)$ and $L_{best}(n-1)$ are injected into the environment as immutable external constants, pre-calculated before the episode begins. The agent cannot mathematically manipulate the threshold required to trigger the jackpot or physics constraint.
