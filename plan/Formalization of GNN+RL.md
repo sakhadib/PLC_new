@@ -78,3 +78,43 @@ If $T_{end} > L_{best}(n-1) + 1$:
 * Trap A: The Infinite Loop (Reward Farming). Because $R_t$ is strictly negative and the environment deterministically removes covered points, there are no positive feedback loops to exploit mid-game. The episode must monotonically approach termination.
 * Trap B: Deliberate Episode Extension. An agent might theoretically try to prolong an episode if a massive terminal reward was guaranteed. However, because $R_{terminal}$ decreases linearly as $T_{end}$ increases, and $R_t$ constantly subtracts, the mathematical gradients strictly point toward the absolute minimum $T_{end}$.
 * Trap C: Subverting the Baseline. The baseline $L_{greedy}(n)$ and $L_{best}(n-1)$ are injected into the environment as immutable external constants, pre-calculated before the episode begins. The agent cannot mathematically manipulate the threshold required to trigger the jackpot or physics constraint.
+
+
+---
+
+
+## Formal Network Architecture: Deep Bipartite Graph Attention Network (GATv2)
+
+1. Core Architecture
+The policy network $\pi_\theta(s_t)$ is implemented as a deep Bipartite Graph Attention Network v2 (GATv2). It is specifically engineered to ingest the dynamically pruned bipartite graph $G_t = (U_t, V_t, E_t)$ and process the asymmetrical geometric relationship between discrete coordinate points and continuous mathematical lines.
+
+2. Feature Initialization & Dimensionality
+* Input Mapping: Point Node features $[x, y, d_u]$ and Line Node features $[a, b, d_v]$ are initially passed through separate, dedicated Linear projection layers to map them into a shared hidden state space.
+* Hidden Dimension ($D$): Set to 128 dimensions. This provides massive representational capacity to memorize prime distribution sequences without choking the Kaggle P100's 16 GB VRAM.
+
+3. Message Passing (The Receptive Field)
+To ensure the network captures broad Phase 2 resonance structures rather than just localized greedy overlaps, the architecture utilizes exactly 3 Message Passing Layers.
+* Layer Mechanics: Information flows strictly across the bipartite edges ($E_t$). 
+    - Pass 1 (Lines $\to$ Points): Points update their state based on intersecting lines.
+    - Pass 2 (Points $\to$ Lines): Lines update their state based on their constituent points.
+* Receptive Scope: At 3 layers deep, a Line Node assesses its direct points, the intersecting lines crossing those points, and the extended point structures those secondary lines cover. This grants the agent a "regional awareness" of the geometric scaffolding.
+
+4. Multi-Head Attention (GATv2)
+Each Message Passing layer is equipped with 8 Attention Heads.
+* Strategic Justification: GATv2 computes dynamic attention scores, allowing the network to heavily weight mathematically critical edges (e.g., dense structural hubs or $a=8$ slopes) while ignoring trivial connections. 
+* Dimension Splitting: The 128-dimensional hidden state is split across the 8 heads (16 dimensions per head), allowing each head to independently specialize in recognizing different arithmetic or topological phenomena. The heads are concatenated after each layer.
+
+5. The Readout Layer (Action Logits)
+After the 3rd message passing layer, the final 128-dimensional embedding of every Line Node $v \in V_t$ is extracted.
+* Projection: These embeddings are passed through a final Multi-Layer Perceptron (MLP) structured as $128 \to 64 \to 1$.
+* Output: This produces a single, unnormalized scalar score (logit) $z_v$ for every available line.
+* Masking: A boolean mask is applied to filter out any lines that were dynamically pruned, and a Softmax is applied to convert the valid logits into the final probability distribution $P(v)$ from which the RL agent samples its action $a_t$.
+
+6. Constraint Alignment (Kaggle P100 Limits)
+* VRAM Limits: Because the 12 million global lines are heavily pruned at the State Representation level, the node count stays strictly in the thousands. A 3-layer, 128-dim GATv2 on a graph of this size consumes less than 3 GB of VRAM, leaving massive overhead for RL rollout buffers.
+* Storage Limits: The `.pth` weights for this architecture will be approximately 5-10 MB, easily allowing thousands of safe checkpoint saves within the Kaggle 19.5 GB working directory limit over the 12-hour session.
+
+
+---
+
+
